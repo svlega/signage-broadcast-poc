@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A push that supersedes an in-flight run on the same branch cancels it —
+# no reason to finish testing a commit nobody's looking at anymore.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-tests:
+    name: Backend (PHP)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_sqlite, redis, gd, zip, bcmath, intl
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+
+      - run: composer install --prefer-dist --no-progress
+
+      - run: cp .env.example .env
+      - run: php artisan key:generate
+
+      # phpunit.xml already points the test environment at an in-memory
+      # SQLite database and the sync queue (see <php> env overrides) —
+      # tests need no MySQL/Redis service containers in CI at all.
+      - run: php artisan test
+
+      # Style, not correctness: fails the build on anything Pint would
+      # reformat, so drift never has to be caught in review by eye.
+      - run: vendor/bin/pint --test
+
+  admin-assets:
+    name: Admin dashboard (Vite build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run build
+
+  kiosk-player:
+    name: Kiosk player (tests + Vite build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npx vue-tsc --build
+      - run: npm run test
+      - run: npm run build-only
+
+  docker-build:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Not pushed anywhere — this job exists purely to catch a broken
+      # Dockerfile at PR time instead of at deploy time. Several real
+      # build failures (a missing PECL build toolchain, a stale
+      # host-generated cache file baked into the image, a PHP version
+      # mismatch against composer.lock) only ever surfaced by actually
+      # running this build, not by reading the Dockerfile.
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          target: runtime
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

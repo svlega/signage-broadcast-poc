@@ -1,0 +1,29 @@
+/*
+ * Minimal reset for a fullscreen kiosk view. Deliberately not the
+ * scaffolded light/dark theme + color-transition setup — a signage
+ * display is never "read" by a user adjusting OS theme, so that CSS
+ * (and the `transition: color/background` it shipped with, which forces
+ * a repaint on every value change) would be pure dead weight here.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* a kiosk view never scrolls; stray scrollbars are a rendering cost with no purpose */
+  background: #000;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}

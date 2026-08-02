@@ -1,0 +1,31 @@
+.env
+.env.*
+!.env.example
+
+vendor
+node_modules
+public/build
+public/hot
+
+# Host-generated package/service discovery cache. If this were copied
+# in, it would bake in whatever dev dependencies happened to be
+# installed on the machine that ran the build (Pail, etc.) — the image
+# regenerates its own from the --no-dev vendor/ it actually has.
+bootstrap/cache/*.php
+
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+database/database.sqlite
+
+.git
+.gitignore
+.gitattributes
+.editorconfig
+.vscode
+.idea
+
+tests
+phpunit.xml
+README.md

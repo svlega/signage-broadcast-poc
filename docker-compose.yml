@@ -1,0 +1,99 @@
+name: signage-broadcast-poc
+
+# Reverb, the queue worker, and the migrate job all reuse the exact same
+# image as the web container (see backend/Dockerfile) — only `command`
+# differs. That's fewer images to build and version, not a shortcut: all
+# of these genuinely are "the Laravel app," just started in a different
+# mode.
+x-app-image: &app-image
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+    target: runtime
+  env_file: ./backend/.env.docker
+  networks: [signage]
+
+services:
+  # One-shot: runs the migrations and exits. web/queue/reverb all start
+  # at roughly the same moment and would otherwise race each other to
+  # create the same `migrations` table against a cold database — a real
+  # failure this setup hit during testing, not a hypothetical one.
+  # Running it exactly once, here, and having the others wait on
+  # `service_completed_successfully` is what fixes that.
+  migrate:
+    <<: *app-image
+    # The official mysql image's own healthcheck can report "healthy"
+    # during its one-time bootstrap (it briefly runs a temporary
+    # internal server to create the schema/user, then restarts as the
+    # real one) — a narrow window where `service_healthy` is already
+    # true but the real server isn't accepting connections yet. A
+    # bounded retry here is the standard, pragmatic fix; it only ever
+    # actually loops on a fresh volume's first boot.
+    command:
+      [
+        "sh", "-c",
+        "for i in $$(seq 1 15); do php artisan migrate --force && exit 0; sleep 2; done; exit 1",
+      ]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    <<: *app-image
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8090:8080"
+    volumes:
+      - storage:/var/www/html/storage
+
+  reverb:
+    <<: *app-image
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=6001"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      # Published to the host so a browser (outside the compose network
+      # entirely) can open the WebSocket directly — the one port on this
+      # whole stack the browser talks to that isn't proxied through nginx.
+      - "6001:6001"
+
+  queue:
+    <<: *app-image
+    command: ["php", "artisan", "queue:work", "redis", "--tries=3", "--sleep=1"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - storage:/var/www/html/storage
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: signage
+      MYSQL_USER: signage
+      MYSQL_PASSWORD: signage
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [signage]
+
+  redis:
+    image: redis:7-alpine
+    networks: [signage]
+
+networks:
+  signage:
+
+volumes:
+  mysql-data:
+  storage:
