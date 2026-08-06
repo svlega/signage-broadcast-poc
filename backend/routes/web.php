@@ -6,9 +6,13 @@ use App\Http\Controllers\Admin\MediaItemController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// No public marketing page in this app — just the API (routes/api.php),
+// the admin backend, and a separately-hosted kiosk player. Laravel's
+// stock welcome view was never wired up to anything real, so root just
+// sends a visitor straight to the one place there's something to see;
+// `auth` middleware on /admin bounces an unauthenticated visitor to
+// /admin/login from there.
+Route::get('/', fn () => redirect('/admin'));
 
 Route::middleware('guest')->group(function () {
     Route::get('/admin/login', [AuthController::class, 'create'])->name('login');

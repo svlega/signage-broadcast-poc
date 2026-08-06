@@ -18,6 +18,15 @@ class MediaItemSeeder extends Seeder
      */
     public function run(): void
     {
+        // Guards against duplicating demo content: the Docker `migrate`
+        // service runs `db:seed` on every `docker compose up`, not just
+        // the first one, so this needs to be safe to call repeatedly —
+        // and it doubles as not clobbering real content an admin has
+        // since added.
+        if (MediaItem::query()->exists()) {
+            return;
+        }
+
         MediaItem::query()->create([
             'uuid' => (string) Str::uuid(),
             'type' => 'ticker',

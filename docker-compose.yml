@@ -29,10 +29,15 @@ services:
     # true but the real server isn't accepting connections yet. A
     # bounded retry here is the standard, pragmatic fix; it only ever
     # actually loops on a fresh volume's first boot.
+    # --seed here too, not just `migrate`: without it the schema exists
+    # but the demo admin login and starter content never do, on a fresh
+    # database. Both DatabaseSeeder and MediaItemSeeder are written to
+    # be safe to run on every `docker compose up` (firstOrCreate / an
+    # existence guard), not just the first one.
     command:
       [
         "sh", "-c",
-        "for i in $$(seq 1 15); do php artisan migrate --force && exit 0; sleep 2; done; exit 1",
+        "for i in $$(seq 1 15); do php artisan migrate --force --seed && exit 0; sleep 2; done; exit 1",
       ]
     depends_on:
       mysql:
@@ -85,6 +90,30 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks: [signage]
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      # The MySQL service is named `mysql` below, not `db` — Compose
+      # resolves container hostnames by service name over the shared
+      # network, so this has to match exactly.
+      PMA_HOST: mysql
+      PMA_USER: root
+      # Root's password specifically (MYSQL_ROOT_PASSWORD on the mysql
+      # service below), not DB_PASSWORD — that's the app's `signage`
+      # user, a different account than root. Hardcoded to match the
+      # mysql service's own MYSQL_ROOT_PASSWORD rather than routed
+      # through `${DB_PASSWORD}`, since env_file (used below by the app
+      # containers) only injects vars *into* a container at runtime —
+      # it never feeds Compose's own `${...}` substitution, which
+      # resolves this YAML file before any container even starts.
+      PMA_PASSWORD: root
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks: [signage]
 
   redis:
