@@ -76,6 +76,22 @@ services:
     volumes:
       - storage:/var/www/html/storage
 
+  # `routes/console.php` only *registers* signage:sync-google-announcement
+  # on a 15-minute schedule — Laravel's scheduler never fires itself,
+  # it needs something calling `schedule:run` every minute (traditionally
+  # a system cron entry). `schedule:work` is Laravel's own long-running
+  # substitute for that cron entry: it self-loops and checks once a
+  # minute, which is exactly what a container needs since there's no
+  # host crontab to hook into here.
+  scheduler:
+    <<: *app-image
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - storage:/var/www/html/storage
+
   mysql:
     image: mysql:8.4
     environment:
