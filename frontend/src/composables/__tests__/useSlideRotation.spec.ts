@@ -107,7 +107,10 @@ describe('useSlideRotation', () => {
     expect(currentItem.value?.title).toBe('A')
   })
 
-  it('clamps the index back into range if the schedule shrinks mid-rotation', async () => {
+  it('keeps showing the on-screen item, unmutated, even if the schedule shrinks out from under it', async () => {
+    // Phase 4: an update that reaches the currently-playing item — even
+    // one that deletes it — must never change what's on screen mid
+    // display. It's staged and only picked up at the next advance().
     const { currentItem, advance, schedule } = setup([
       makeItem({ title: 'A' }),
       makeItem({ title: 'B' }),
@@ -118,13 +121,51 @@ describe('useSlideRotation', () => {
     advance()
     expect(currentItem.value?.title).toBe('C')
 
-    // A live push (useSignageSocket) can swap in a shorter playlist at
-    // any point in the rotation — the watcher that reacts to this runs
-    // on Vue's scheduler, hence the tick.
+    // A live push (useSignageSocket) can swap in a shorter playlist —
+    // including one where 'C' no longer exists at all — at any point in
+    // the rotation.
     schedule.value = [makeItem({ title: 'X' })]
     await nextTick()
 
+    expect(currentItem.value?.title).toBe('C')
+
+    advance()
+
     expect(currentItem.value?.title).toBe('X')
+  })
+
+  it('applies an update to a different (off-screen) item immediately, not just at the next advance', async () => {
+    const a = makeItem({ title: 'A' })
+    const { schedule } = setup([a, makeItem({ title: 'B' })])
+
+    schedule.value = [a, makeItem({ id: schedule.value[1]!.id, title: 'B (edited)' })]
+    await nextTick()
+
+    // Nothing pins the *rest* of the array — only currentItem is frozen —
+    // so a change to an item that isn't on screen is visible right away.
+    expect(schedule.value[1]?.title).toBe('B (edited)')
+  })
+
+  it('does not mutate the on-screen item when its own data changes, only once advance() picks it back up', async () => {
+    const original = makeItem({ title: 'A', url: 'https://example.com/original.jpg' })
+    const { currentItem, advance, schedule } = setup([original, makeItem({ title: 'B' })])
+
+    expect(currentItem.value?.url).toBe('https://example.com/original.jpg')
+
+    // Same id, same slot, edited content — e.g. an admin re-saved the
+    // currently-playing item, minting a fresh checksum.
+    schedule.value = [
+      { ...original, url: 'https://example.com/edited.jpg', checksum: 'new-checksum' },
+      schedule.value[1]!,
+    ]
+    await nextTick()
+
+    expect(currentItem.value?.url).toBe('https://example.com/original.jpg')
+
+    advance() // to 'B'
+    advance() // wraps back to 'A' — now picks up the edit
+
+    expect(currentItem.value?.url).toBe('https://example.com/edited.jpg')
   })
 
   it('clears its pending timer on cleanup', () => {

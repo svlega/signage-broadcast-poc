@@ -7,11 +7,12 @@ use Database\Factories\MediaItemFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MediaItem extends Model
 {
     /** @use HasFactory<MediaItemFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * Any create/update/delete re-broadcasts the whole on-air set. This is

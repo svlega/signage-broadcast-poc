@@ -12,8 +12,8 @@ import App from './App.vue'
 // an oversight.
 createApp(App).mount('#app')
 
-// Offline resilience, part 2 of 2 (part 1 is useOfflineCache's IndexedDB
-// schedule cache). The Service Worker caches the actual media bytes
+// Offline resilience, part 2 of 2 (part 1 is useContentManifest's
+// IndexedDB manifest). The Service Worker caches the actual media bytes
 // (images/video) so a reconnect-then-disconnect cycle — or a full power
 // cycle with no network — still plays the last known-good playlist
 // instead of a broken-image icon.
