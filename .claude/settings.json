@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan test)",
+      "Bash(php artisan test *)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint *)",
+      "Bash(git diff)",
+      "Bash(git diff *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Bash(*migrate:fresh*)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}

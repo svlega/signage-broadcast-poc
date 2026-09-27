@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureValidMcpToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,7 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // routes/ai.php's Mcp::web() call applies this by alias — see
+        // App\Http\Middleware\EnsureValidMcpToken for why a fixed dev
+        // token, not Sanctum/OAuth, for this POC.
+        $middleware->alias([
+            'mcp.token' => EnsureValidMcpToken::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

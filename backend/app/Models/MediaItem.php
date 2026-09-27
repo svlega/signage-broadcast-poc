@@ -7,11 +7,13 @@ use Database\Factories\MediaItemFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class MediaItem extends Model
 {
     /** @use HasFactory<MediaItemFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * Any create/update/delete re-broadcasts the whole on-air set. This is
@@ -60,5 +62,21 @@ class MediaItem extends Model
                 $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now);
             })
             ->orderBy('sort_order');
+    }
+
+    /**
+     * Not a real content hash — this app never fetches/controls the
+     * remote media bytes, so there's nothing to hash. A fresh token
+     * minted on every explicit save is the honest equivalent: it can't
+     * prove the remote file changed, but it never needs to, since always
+     * invalidating on save means the player only ever risks one
+     * redundant re-fetch of unchanged media, never a stale one. Lives
+     * here (not on a controller) so every caller that mints a new
+     * version of an item — the admin CRUD controller, the MCP publish
+     * tools — shares the same rule instead of redefining it.
+     */
+    public static function mintChecksum(): string
+    {
+        return sha1((string) Str::uuid());
     }
 }

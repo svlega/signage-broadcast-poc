@@ -50,7 +50,13 @@ class MediaItemSeeder extends Seeder
                 'uuid' => (string) Str::uuid(),
                 'type' => 'slide',
                 'title' => $title,
-                'url' => 'https://picsum.photos/seed/signage-slide-'.($index + 1).'/1920/1080',
+                // .jpg suffix matters here, not just cosmetic: the
+                // Service Worker's cache-first media routing matches on
+                // file extension (see public/service-worker.js), and an
+                // extension-less URL would silently never be intercepted
+                // by it at all — picsum supports the suffixed form and
+                // still serves the same image/jpeg bytes.
+                'url' => 'https://picsum.photos/seed/signage-slide-'.($index + 1).'/1920/1080.jpg',
                 'duration_seconds' => 10,
                 'sort_order' => $index + 1,
                 'is_active' => true,

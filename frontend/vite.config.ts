@@ -20,5 +20,11 @@ export default defineConfig({
     // enough — jsdom would be pure overhead for this test suite's scope.
     environment: 'node',
     include: ['src/**/*.spec.ts'],
+    // fake-indexeddb/auto installs a real (in-memory) IndexedDB
+    // implementation onto the global scope before any test file runs —
+    // useContentManifest.ts calls the global `indexedDB` directly, the
+    // same way it does in a real browser, and node has no such global
+    // on its own.
+    setupFiles: ['fake-indexeddb/auto'],
   },
 })

@@ -25,7 +25,11 @@ class MediaItemController extends Controller
 
     public function store(StoreMediaItemRequest $request): MediaItemResource
     {
-        $item = MediaItem::create([...$request->validated(), 'uuid' => (string) Str::uuid()]);
+        $item = MediaItem::create([
+            ...$request->validated(),
+            'uuid' => (string) Str::uuid(),
+            'checksum' => MediaItem::mintChecksum(),
+        ]);
 
         return new MediaItemResource($item);
     }
@@ -37,7 +41,10 @@ class MediaItemController extends Controller
 
     public function update(UpdateMediaItemRequest $request, MediaItem $mediaItem): MediaItemResource
     {
-        $mediaItem->update($request->validated());
+        $mediaItem->update([
+            ...$request->validated(),
+            'checksum' => MediaItem::mintChecksum(),
+        ]);
 
         return new MediaItemResource($mediaItem);
     }

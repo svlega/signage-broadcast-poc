@@ -99,6 +99,13 @@ services:
       MYSQL_USER: signage
       MYSQL_PASSWORD: signage
       MYSQL_ROOT_PASSWORD: root
+    ports:
+      # Published so `php artisan serve` running bare-metal (backend/.env,
+      # DB_HOST=127.0.0.1) can reach the exact same database Docker's own
+      # `web` container uses — one dataset regardless of which one is
+      # currently serving HTTP, instead of native mode silently drifting
+      # onto its own separate (and, until now, broken) database.
+      - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -134,6 +141,14 @@ services:
 
   redis:
     image: redis:7-alpine
+    ports:
+      # 6380 on the host, not 6379: this machine already has a separate,
+      # unrelated Redis (Herd's own) bound to the default port — mapping
+      # onto that instead of clashing with it would silently connect
+      # native mode to the *wrong* Redis (not the one Docker's
+      # reverb/queue containers are actually subscribed to), which is a
+      # worse failure than just picking a different host port.
+      - "6380:6379"
     networks: [signage]
 
 networks:

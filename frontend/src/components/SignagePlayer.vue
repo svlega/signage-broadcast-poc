@@ -4,6 +4,7 @@ import { useDisplaySchedule } from '@/composables/useDisplaySchedule'
 import { useSlideRotation } from '@/composables/useSlideRotation'
 import { useSignageSocket } from '@/composables/useSignageSocket'
 import { useHeartbeat } from '@/composables/useHeartbeat'
+import { cacheBustedMediaUrl } from '@/utils/mediaUrl'
 import NewsTicker from '@/components/NewsTicker.vue'
 
 /**
@@ -16,7 +17,7 @@ import NewsTicker from '@/components/NewsTicker.vue'
 
 const { schedule, isOffline, start, applyLiveUpdate } = useDisplaySchedule()
 const { currentItem, currentIndex, advance } = useSlideRotation(schedule)
-const { status: socketStatus } = useSignageSocket((items) => applyLiveUpdate(items))
+const { status: socketStatus } = useSignageSocket((items, serverTime) => applyLiveUpdate(items, serverTime))
 
 // Heartbeat has no return value the template needs — it only needs to
 // be invoked so its interval + onUnmounted cleanup get registered.
@@ -25,6 +26,12 @@ useHeartbeat()
 void start()
 
 const videoEl = ref<HTMLVideoElement | null>(null)
+
+// Checksum-busted, not the raw item.url: the Service Worker caches
+// media cache-first, keyed by request URL — without this, replacing a
+// slide's image at the *same* URL would keep serving whatever bytes
+// were cached from the first version forever. See utils/mediaUrl.ts.
+const currentMediaUrl = computed(() => (currentItem.value ? cacheBustedMediaUrl(currentItem.value) : null))
 
 // A small bounded preload cache: the *next* slide's image is fetched
 // ahead of time so it's already decoded by the time it becomes current,
@@ -41,7 +48,7 @@ function preloadUpcomingSlide() {
   if (preloadCache.value.has(upcoming.id)) return
 
   const img = new Image()
-  img.src = upcoming.url
+  img.src = cacheBustedMediaUrl(upcoming) ?? upcoming.url
 
   // The Image instance is plain runtime state, never rendered by Vue's
   // template, and never mutated reactively — markRaw stops Vue from
@@ -118,7 +125,7 @@ onUnmounted(() => {
         :key="currentItem.id"
         ref="videoEl"
         class="media-layer"
-        :src="currentItem.url ?? undefined"
+        :src="currentMediaUrl ?? undefined"
         autoplay
         muted
         playsinline
@@ -128,7 +135,7 @@ onUnmounted(() => {
         v-else-if="currentItem?.type === 'slide'"
         :key="currentItem.id"
         class="media-layer"
-        :src="currentItem.url ?? undefined"
+        :src="currentMediaUrl ?? undefined"
         :alt="currentItem.title"
       />
       <div v-else-if="currentItem?.type === 'ticker'" :key="currentItem.id" class="media-layer ticker-slot">

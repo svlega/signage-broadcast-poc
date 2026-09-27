@@ -24,7 +24,7 @@ interface ScheduleUpdatedPayload {
  * navigation in a less minimal app, would otherwise leak a live socket
  * and an event handler on every remount.
  */
-export function useSignageSocket(onScheduleUpdated: (items: MediaItem[]) => void) {
+export function useSignageSocket(onScheduleUpdated: (items: MediaItem[], serverTime: string) => void) {
   const status = shallowRef<SocketStatus>('connecting')
 
   // window.Pusher is how laravel-echo's pusher transport locates its
@@ -59,7 +59,7 @@ export function useSignageSocket(onScheduleUpdated: (items: MediaItem[]) => void
   // (App\Events\ScheduleUpdated::broadcastAs) rather than a class name
   // Echo should namespace-resolve itself.
   channel.listen('.schedule.updated', (payload: ScheduleUpdatedPayload) => {
-    onScheduleUpdated(payload.items)
+    onScheduleUpdated(payload.items, payload.updated_at)
   })
 
   echo.connector.pusher.connection.bind('connecting', () => {

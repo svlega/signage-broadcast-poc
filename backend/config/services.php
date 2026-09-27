@@ -49,4 +49,11 @@ return [
         'scopes' => ['https://www.googleapis.com/auth/documents.readonly'],
     ],
 
+    'mcp' => [
+        // Fixed dev token, not Sanctum/OAuth — see routes/ai.php and
+        // App\Http\Middleware\EnsureValidMcpToken for why this is
+        // deliberately the simplest thing that works for a local POC.
+        'token' => env('MCP_DEV_TOKEN'),
+    ],
+
 ];
