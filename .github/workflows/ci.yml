@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 # A push that supersedes an in-flight run on the same branch cancels it —
@@ -91,6 +91,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # The runner's default `docker` build driver can't export a cache,
+      # so `cache-to: type=gha` below fails without a buildx builder
+      # (docker-container driver) set up first.
+      - uses: docker/setup-buildx-action@v3
 
       # Not pushed anywhere — this job exists purely to catch a broken
       # Dockerfile at PR time instead of at deploy time. Several real
